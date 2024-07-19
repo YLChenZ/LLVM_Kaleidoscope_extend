@@ -1,2 +1,2 @@
-# LLVM_Kaleidoscope_extend
-这个项目是对LLVM教程中的Kaleidoscope进行扩展！
+# Tiny-Compiler
+一个小巧的编译器
