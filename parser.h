@@ -6,12 +6,14 @@
 #include "lexer.h"
 
 
+
 class Parser{
-  std::ifstream file;
   Token CurTok;
-  std::string filename;
+  int index;
   std::unique_ptr<ProgNode> Root;
   Lexer lexer;
+  std::string filename;
+  std::vector<Token> TokVec;
 public:
   Parser(const std::string& filename);
 
@@ -22,7 +24,7 @@ public:
   void getNextToken();
 
   std::unique_ptr<Node> ParseError(const std::string& message);
-
+  
   std::unique_ptr<Node> ParseVarExp();
 
   std::unique_ptr<Node> ParseNumExp();
@@ -30,14 +32,22 @@ public:
   std::unique_ptr<Node> ParseBinExp();
 
   std::unique_ptr<Node> ParseCalleeExp();
+  
+  std::unique_ptr<Node> ParseLetExp();
+  
+  std::unique_ptr<Node> ParseIfExp();
 
   std::unique_ptr<Node> ParseExp();
+  
+  std::unique_ptr<Node> ParseStmtList();
 
   std::unique_ptr<Node> ParseFunDef();
   
   void ParseProgram();
   
-  void PrintAst(std::unique_ptr<ProgNode> root);
+  void PrintAst(std::unique_ptr<ProgNode>& root);
+  
+  void PrintIR(std::unique_ptr<ProgNode>& root);
  
 };
 

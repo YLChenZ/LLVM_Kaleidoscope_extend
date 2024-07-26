@@ -1,19 +1,6 @@
 #include "lexer.h"
 
 
-TokenTytoStr AttrToStringDic() 
-{
-  TokenTytoStr ttos = {{TokenAttr::Identifier,"ID"},
-  			{TokenAttr::Number,"NUM"},
-  			{TokenAttr::Operator,"OP"},
-  			{TokenAttr::Keyword,"KEYWORD"},
-  			{TokenAttr::Parenthesis,"PAREN"},
-  			{TokenAttr::Assignment,"ASSIGN"},
-  			{TokenAttr::EndOfFile,"EOF"},
-  			{TokenAttr::Unknown,"UNKNOWN"}};
-  return ttos;
-}
-
 void Lexer::advance() {
 	currentChar = file.get();
 }
@@ -24,7 +11,8 @@ Token Lexer::identifier() {
 		result += currentChar;
 		advance();
 	}
-	if (result == "def" || result == "return")
+	if (result == "def" || result == "let" || result == "if" || 
+	    result == "then" || result == "else")
 		return Token(TokenAttr::Keyword, result);
 	return Token(TokenAttr::Identifier, result);
 }
@@ -39,7 +27,7 @@ Token Lexer::number() {
 }
 
 bool Lexer::isOperator(char c) {
-	return c == '+' || c == '-' || c == '*' || c == '/';
+	return c == '+' || c == '-' || c == '*' || c == '/' || c == '=';
 }
 
 bool Lexer::isParenthesis(char c) {
@@ -98,15 +86,29 @@ Token Lexer::getToken() {
 	advance();
 	return Token(TokenAttr::Unknown, std::string(1, unknownChar));
 }
-        
+
+std::vector<Token> Lexer::getTokenVec()
+{
+	TokenTytoStr ttos = AttrToStringDic();
+	std::vector<Token> TokVec;
+	
+	Token tok = getToken();
+	
+	while (tok.Attr != TokenAttr::EndOfFile) {
+		TokVec.push_back(tok);
+		tok = getToken();
+	} 
+	return TokVec;
+}
+      
 void Lexer::PrintTokens()
 {
 	TokenTytoStr ttos = AttrToStringDic();
-	Token tok = getToken();
-	while (tok.Attr != TokenAttr::EndOfFile) {
-		std::cout << "Token: { name: " << tok.name << ", Attr: " << ttos[tok.Attr] << " }\n";
-		tok = getToken();
-	} 
+	auto TokVec = getTokenVec();
+	for (auto tok : TokVec) 
+          std::cout << "Token: { name: " << tok.name << ", Attr: " << ttos[tok.Attr] << " }\n";
+		
+	
 }
 
 

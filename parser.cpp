@@ -1,42 +1,18 @@
 #include "parser.h"
 
 
-std::unique_ptr<ProgNode> InitAst() {
-    return std::make_unique<ProgNode>(std::vector<std::unique_ptr<Node>>{});
-}
-
-
-void addNode(std::unique_ptr<ProgNode> root, std::unique_ptr<Node> node) {
-    if (!root) {
-        root = InitAst();
-        root->defs.push_back(std::move(node));
-    }
-    root->defs.push_back(std::move(node));
-}
-
-
 void Parser::getNextToken(){
-  CurTok = lexer.getToken();
+  index++;
+  CurTok = TokVec[index];
 }
 
-Parser::Parser(const std::string& filename) : filename(filename), CurTok(Token(TokenAttr::Unknown," ")), Root(InitAst()), lexer {Lexer(filename)}
+Parser::Parser(const std::string& filename) 
+	: index(-1), filename(filename), CurTok(Token(TokenAttr::Unknown," ")), Root(InitAst()), lexer {Lexer(filename)}, TokVec{lexer.getTokenVec()}
 {
-	//file = std::move(lexer.file);
-	file.open(filename);
-	if (!file.is_open()) {
-		std::cerr << "Error opening file" << std::endl;
-		exit(1);
-	}
-	
 	getNextToken();
-	
 }
 
-Parser::~Parser(){
-	if (file.is_open()) {
-		file.close();
-	}
-}
+Parser::~Parser(){};
 
 
 std::unique_ptr<ProgNode> Parser::getRoot(){
@@ -52,30 +28,30 @@ std::unique_ptr<Node> Parser::ParseError(const std::string& message){
 std::unique_ptr<Node> Parser::ParseNumExp(){
   if (CurTok.Attr == TokenAttr::Number){
     std::string numstr = CurTok.name;
-    getNextToken();
+    //getNextToken();
     return std::make_unique<NumNode> (std::stoi(numstr));
   }  
-  return ParseError("current Token is not a number!");
+  return ParseError("Excepted a number!");
 }
 
 std::unique_ptr<Node> Parser::ParseVarExp(){
   if (CurTok.Attr == TokenAttr::Identifier){
     std::string vn = CurTok.name;
-    getNextToken();
+    //getNextToken();
     return std::make_unique<VarNode> (vn);
   }  
-  return ParseError("current Token is not a variable!");
+  return ParseError("Excepted a variable!");
 }
 
 std::unique_ptr<Node> Parser::ParseBinExp() {
   std::unique_ptr<Node> lhs;
-  std::cout << CurTok.name <<'\n';
+  
   if (CurTok.Attr == TokenAttr::Number)
     lhs = ParseNumExp();
   else if (CurTok.Attr == TokenAttr::Identifier)
     lhs = ParseVarExp();
   else 
-    return ParseError("current Token is not an expression in BinExp LHS!");
+    return ParseError("Excepted an expression in BinExp's LHS!");
   
   getNextToken();
   
@@ -83,7 +59,7 @@ std::unique_ptr<Node> Parser::ParseBinExp() {
   if (CurTok.Attr == TokenAttr::Operator)
     Op = CurTok.name[0];
   else 
-    return ParseError("current Token is not an operator!");
+    return ParseError("Excepted an operator!");
   
   getNextToken();
   
@@ -93,9 +69,9 @@ std::unique_ptr<Node> Parser::ParseBinExp() {
   else if (CurTok.Attr == TokenAttr::Identifier)
     rhs = ParseVarExp();
   else 
-    return ParseError("current Token is not an expression in BinExp RHS!");
+    return ParseError("Excepted an expression in BinExp's RHS!");
   
-  getNextToken();
+  //getNextToken();
   
   return std::make_unique<BinExpNode> (Op, std::move(lhs), std::move(rhs));
 }
@@ -105,14 +81,14 @@ std::unique_ptr<Node> Parser::ParseCalleeExp() {
   if (CurTok.Attr == TokenAttr::Identifier)
     Callee = CurTok.name;
   else 
-    return ParseError("current Token is not an Identifier in Callee!");
+    return ParseError("Excepted an Identifier in Callee!");
   
   getNextToken();
   
-  if (CurTok.Attr == TokenAttr::Parenthesis)
+  if (CurTok.Attr == TokenAttr::Parenthesis && CurTok.name == "(")
     getNextToken();
   else 
-    return ParseError("current Token is not a left Parenthesis in Callee!");
+    return ParseError("Excepted a left Parenthesis in Callee!");
   
   std::vector<std::unique_ptr<Node>> Args;
   
@@ -128,56 +104,126 @@ std::unique_ptr<Node> Parser::ParseCalleeExp() {
     }
   }
   
-  if (CurTok.Attr == TokenAttr::Parenthesis) {
-    getNextToken();
+  if (CurTok.Attr == TokenAttr::Parenthesis && CurTok.name == ")") {
+    //getNextToken();
     return std::make_unique<CalleeExpNode> (Callee, std::move(Args));
   } else 
-    return ParseError("current Token is not a right Parenthesis in Callee!");
+    return ParseError("Excepted a right Parenthesis in Callee!");
+}
+
+
+std::unique_ptr<Node> Parser::ParseLetExp(){
+  if (CurTok.name == "let")
+    getNextToken();
+  else return ParseError("Excepted let!");
+  
+  std::unique_ptr<Node> letvar;
+  
+  if (CurTok.Attr == TokenAttr::Identifier){
+    letvar = ParseVarExp();
+    getNextToken();
+  }
+  else return ParseError("Excepted a variable!");
+  
+  if (CurTok.name == "=")
+    getNextToken();
+  else return ParseError("Excepted assignment '=' ");
+  
+  auto letbody = ParseExp();
+  
+  return std::make_unique<LetExpNode> (std::move(letvar),std::move(letbody));
+    
+}
+
+std::unique_ptr<Node> Parser::ParseIfExp(){
+  if (CurTok.name == "if")
+    getNextToken();
+  else return ParseError("Excepted if");
+  
+  auto cond = ParseExp();
+  if (!cond) return ParseError("Excepted an expression in Condition");
+  
+  getNextToken();
+  if (CurTok.name == "then")
+    getNextToken();
+  auto then = ParseExp();
+  if (!then) return ParseError("Excepted an expression in then branch");
+  
+  getNextToken();
+  if (CurTok.name == "else")
+    getNextToken();
+  auto els = ParseExp();
+  if (!els) return ParseError("Excepted an expression in else branch");
+  
+  return std::make_unique<IfExpNode> (std::move(cond),std::move(then),std::move(els)); 
+  
 }
 
 
 std::unique_ptr<Node> Parser::ParseExp(){
-  std::streampos prevPos = file.tellg();
-  if (CurTok.Attr == TokenAttr::Number || CurTok.Attr == TokenAttr::Identifier)
-    getNextToken();
-
-  if (CurTok.Attr == TokenAttr::Operator) {
-    file.seekg(prevPos);
-    ParseBinExp();
+  if (CurTok.name == "let"){
+    return ParseLetExp();
   }
   
-  else if (CurTok.Attr == TokenAttr::Parenthesis) {
-    file.seekg(prevPos);
-    ParseCalleeExp();
+  if (CurTok.name == "if"){
+    return ParseIfExp();
+  }
+  
+  if (CurTok.Attr == TokenAttr::Number || CurTok.Attr == TokenAttr::Identifier)
+    getNextToken();
+  
+  if (CurTok.Attr == TokenAttr::Operator) {
+    index--;
+    CurTok = TokVec[index];
+    return ParseBinExp();
+  }
+  
+  if (CurTok.Attr == TokenAttr::Parenthesis) {
+    index--;
+    CurTok = TokVec[index];
+    return ParseCalleeExp();
   }
   
   else {
-    file.seekg(prevPos);
+    index--;
+    CurTok = TokVec[index];
     if (CurTok.Attr == TokenAttr::Number)
-      ParseNumExp();
+      return ParseNumExp();
     else if (CurTok.Attr == TokenAttr::Identifier)
-      ParseVarExp();
+      return ParseVarExp();
   }
+  return ParseError("Parse expression failed!");
+}
+
+std::unique_ptr<Node> Parser::ParseStmtList(){
+  std::unique_ptr<Node> stmt;
+  std::vector<std::unique_ptr<Node>> stmtlist;
+  while (CurTok.name != ";"){
+    stmt = ParseExp();
+    stmtlist.push_back(std::move(stmt));
+    getNextToken();
+  }
+  getNextToken();
+  return std::make_unique<StmtListNode> (std::move(stmtlist));
 }
 
 std::unique_ptr<Node> Parser::ParseFunDef(){
   if (CurTok.name == "def")
     getNextToken(); 
-  else return ParseError("current Token is not def!");
+  else return ParseError("Excepted def!");
   
   std::string fname;
   
-  //std::cout<<CurTok.name<<'\n';
   
   if (CurTok.Attr == TokenAttr::Identifier){
     fname = CurTok.name;
     getNextToken();
   }
-  else return ParseError("current Token is not an Identifier in Function!"); 
+  else return ParseError("Excepted an Identifier in Function!"); 
   
-  if (CurTok.Attr == TokenAttr::Parenthesis)
+  if (CurTok.Attr == TokenAttr::Parenthesis && CurTok.name == "(")
     getNextToken();
-  else return ParseError("current Token is not a left Parenthesis in Fun!");
+  else return ParseError("Excepted a left Parenthesis in Fun!");
   
   std::vector<std::string> Args;
   
@@ -187,27 +233,38 @@ std::unique_ptr<Node> Parser::ParseFunDef(){
     getNextToken();
   }
   
-  if (CurTok.Attr == TokenAttr::Parenthesis)
+  if (CurTok.Attr == TokenAttr::Parenthesis && CurTok.name == ")")
     getNextToken();
-  else return ParseError("current Token is not a right Parenthesis in Fun!");
+  else return ParseError("Excepted a right Parenthesis in Fun!");
   
-  std::cout << CurTok.name << '\n';
-  if (auto body = ParseExp())
+  if (auto body = ParseStmtList())
     return std::make_unique<FunDefNode> (fname,std::move(Args),std::move(body));
   else return ParseError("The body of function: "+ fname + " can't be parsed!");
 }
 
 void Parser::ParseProgram(){
   std::unique_ptr<Node> funnode;
-  if (CurTok.name == "def") {
-    if (funnode = ParseFunDef())
-      addNode(std::move(Root),std::move(funnode));
-    else return;
+  while (CurTok.name != "$"){
+    if (CurTok.name == "def") {
+      if (funnode = ParseFunDef()) {
+        std::cout<<"parse fun ok"<<'\n';
+        addNode(Root,std::move(funnode));
+        std::cout<<"add ok"<<'\n';
+        std::cout<<CurTok.name<<'\n';
+      }
+      else return;
+    }
+    //getNextToken();
   }
-  getNextToken();
-  
+  return;
 }
 
-void Parser::PrintAst(std::unique_ptr<ProgNode> root){
+void Parser::PrintAst(std::unique_ptr<ProgNode>& root){
+  std::cout<<"start printing Ast"<<'\n';
   root->printinfo();
+}
+
+void Parser::PrintIR(std::unique_ptr<ProgNode>& root){
+  std::cout<<"start printing IR"<<'\n';
+  root->codegen();
 }

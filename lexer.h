@@ -5,14 +5,14 @@
 #include <iostream>
 #include <fstream>
 #include <cctype>
-
+#include <vector>
 
 class Lexer {
 private:
     std::ifstream file;
     char currentChar;
 
-    void advance();  //向前读一个字符
+    void advance();
     Token identifier();
     Token number();
     bool isOperator(char c);
@@ -23,8 +23,11 @@ public:
 
     ~Lexer();
 
-    Token getToken();  //从文件中获得Token
-    void PrintTokens(); //打印文件包含的所有Tokens
+    Token getToken();
+    
+    std::vector<Token> getTokenVec();
+    
+    void PrintTokens();
     
     
 };

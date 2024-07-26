@@ -5,7 +5,6 @@
 #include <string>
 #include <map>
 
-//Token的属性
 enum class TokenAttr {
     Identifier,
     Number,
@@ -17,16 +16,16 @@ enum class TokenAttr {
     Unknown
 };
 
-typedef std::map<TokenAttr,std::string> TokenTytoStr;   //为了方便打印Lexer的结果，将TokenAttr映射到string。
+typedef std::map<TokenAttr,std::string> TokenTytoStr;
 
 TokenTytoStr AttrToStringDic();
 
-//暂时Token的设计，后面会加行号和位置
-struct Token {
+class Token {
+public:
     TokenAttr Attr;
     std::string name;
 
-    Token(TokenAttr t, const std::string& n) : Attr(t), name(n) {}
+    Token(TokenAttr t, const std::string& n);
 };
 
 #endif
